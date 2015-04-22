@@ -54,6 +54,11 @@ class HBHENoiseFilterResultProducer : public edm::EDProducer {
       int minHPDNoOtherHits_;
       int minZeros_;
 
+      int counter;
+      int counter_r1;
+      int counter_r2l;
+      int counter_r2t;
+
       bool IgnoreTS4TS5ifJetInLowBVRegion_;
       std::string defaultDecision_;
 
@@ -67,6 +72,12 @@ class HBHENoiseFilterResultProducer : public edm::EDProducer {
 
 HBHENoiseFilterResultProducer::HBHENoiseFilterResultProducer(const edm::ParameterSet& iConfig)
 {
+
+  counter     = 0;
+  counter_r1  = 0;
+  counter_r2l = 0;
+  counter_r2t = 0;
+
   //now do what ever initialization is needed
   noisetoken_ = consumes<HcalNoiseSummary>(iConfig.getParameter<edm::InputTag>("noiselabel"));
   minHPDHits_ = iConfig.getParameter<int>("minHPDHits");
@@ -84,7 +95,10 @@ HBHENoiseFilterResultProducer::HBHENoiseFilterResultProducer(const edm::Paramete
 
 HBHENoiseFilterResultProducer::~HBHENoiseFilterResultProducer()
 {
-
+  std::cout << "counter all: " << counter     << std::endl;
+  std::cout << "counter r1 : " << counter_r1  << " " << (counter_r1 *100./counter) << std::endl;
+  std::cout << "counter r2l: " << counter_r2l << " " << (counter_r2l*100./counter) << std::endl;
+  std::cout << "counter r2t: " << counter_r2t << " " << (counter_r2t*100./counter) << std::endl;
 }
 
 
@@ -96,6 +110,8 @@ HBHENoiseFilterResultProducer::~HBHENoiseFilterResultProducer()
 void
 HBHENoiseFilterResultProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+
+  counter++;
    using namespace edm;
 
   // get the Noise summary object
@@ -111,6 +127,7 @@ HBHENoiseFilterResultProducer::produce(edm::Event& iEvent, const edm::EventSetup
   if (IgnoreTS4TS5ifJetInLowBVRegion_)
       goodJetFoundInLowBVRegion = summary.goodJetFoundInLowBVRegion();
 
+
   const bool failCommon = summary.maxHPDHits() >= minHPDHits_ ||
                           summary.maxHPDNoOtherHits() >= minHPDNoOtherHits_ ||
                           summary.maxZeros() >= minZeros_;
@@ -119,13 +136,19 @@ HBHENoiseFilterResultProducer::produce(edm::Event& iEvent, const edm::EventSetup
                                        !goodJetFoundInLowBVRegion);
   decisionMap_["HBHENoiseFilterResultRun1"] = failRun1;
 
+  if(!failRun1) counter_r1++;
+
   const bool failRun2Loose = failCommon || (summary.HasBadRBXRechitR45Loose() &&
                                             !goodJetFoundInLowBVRegion);
   decisionMap_["HBHENoiseFilterResultRun2Loose"] = failRun2Loose;
 
+  if(!failRun2Loose) counter_r2l++;
+
   const bool failRun2Tight = failCommon || (summary.HasBadRBXRechitR45Tight() &&
                                             !goodJetFoundInLowBVRegion);
   decisionMap_["HBHENoiseFilterResultRun2Tight"] = failRun2Tight;
+
+  if(!failRun2Tight) counter_r2t++;
 
   // Write out the standard flags
   std::auto_ptr<bool> pOut;
